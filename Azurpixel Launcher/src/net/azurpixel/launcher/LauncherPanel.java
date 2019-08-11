@@ -233,6 +233,8 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 
 		if (willRefresh)
 			setInfoText("Bienvenue " + AP_SAVER.get("username"));	
+			if (AP_SAVER.get("premium").equals("true")) 
+				setInfoText("Bienvenue " + AP_SAVER.get("username") + " | Premium");	
 
 		new Thread("News Loader"){
 			@Override

@@ -64,6 +64,8 @@ public class Launcher {
 			AP_SAVER.set("button", "");
 		if (AP_SAVER.get("openAtStart") == null) 
 			AP_SAVER.set("openAtStart", "false");
+		if (AP_SAVER.get("autoConnect") == null) 
+			AP_SAVER.set("autoConnect", "true");
 		if (AP_SAVER.get("openAtStart").equals("true")) 
 			WebPage.show(AP_URL.concat("/vote"));
 		if(!AP_DIR.exists())
@@ -72,12 +74,13 @@ public class Launcher {
 		Swinger.setResourcePath("/resources/");
 		AP_UPDATER.addApplication(new FileDeleter());
 		new LauncherFrame().setVisible(true);
-		new ConnectToServer(AP_IP, "25565");	
+		if (AP_SAVER.get("autoConnect").equals("true"))
+			new ConnectToServer(AP_IP, "25565");
+		else
+			;
 		
 	}
-	
-
-	
+		
 	public static void copyFile(File from, File to) throws IOException {
 	    Files.copy( from.toPath(), to.toPath());
 	} 
@@ -89,10 +92,11 @@ public class Launcher {
 	public static void auth(String user, String pass) throws AuthenticationException {
 		if(user.length() != 0) {
 			if(pass.length() == 0) {
+				AP_SAVER.set("premium", "false");
 				authInfos = new AuthInfos(user, "sry", "nope");
-				LauncherFrame.getInstance().getLauncherPanel().keeploginCheckBox.setSelected(false);
 			}
 			else if  (user.length() != 0) {
+				AP_SAVER.set("premium", "true");
 				AuthResponse rep = AP_AUTH.authenticate(AuthAgent.MINECRAFT, user, pass, AP_SAVER.get("client-token", null));
 				AP_SAVER.set("client-token", rep.getClientToken());
 				authInfos = new AuthInfos(rep.getSelectedProfile().getName(), rep.getAccessToken(), rep.getSelectedProfile().getId());
@@ -104,8 +108,12 @@ public class Launcher {
 	}
 	}
 	public static void refresh() throws AuthenticationException {
-		RefreshResponse rep = AP_AUTH.refresh(AP_SAVER.get("access-token"), AP_SAVER.get("client-token"));
-	    authInfos = new AuthInfos(rep.getSelectedProfile().getName(), rep.getAccessToken(), rep.getSelectedProfile().getId());	
+		if (AP_SAVER.get("premium").equals("true")) {
+			RefreshResponse rep = AP_AUTH.refresh(AP_SAVER.get("access-token"), AP_SAVER.get("client-token"));
+			authInfos = new AuthInfos(rep.getSelectedProfile().getName(), rep.getAccessToken(), rep.getSelectedProfile().getId());	
+		}
+		else
+			authInfos = new AuthInfos(AP_SAVER.get("username"), "sry", "nope");	
 	}
 	
 	public static void setAuthInfos(String user, String accessToken, String uuid) throws AuthenticationException {

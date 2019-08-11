@@ -22,6 +22,8 @@ public class OptionFrame extends JDialog
 
 	private JLabel borderlessLabel = new JLabel("Fenêtré sans bordures");
 	private static JCheckBox borderlessCheckBox = new JCheckBox();
+	private JLabel autoConnectLabel = new JLabel("Auto-Connect Azurpixel.net");
+	private static JCheckBox autoConnectCheckBox = new JCheckBox();
 	private JLabel openAtStartLabel = new JLabel("<html>Ouvrir la page de vote<br>au démarrage du launcher</html>");
 	private static JCheckBox openAtStartCheckBox = new JCheckBox();
 	private JLabel integrityLabel = new JLabel("Intégritée des fiohiers");
@@ -46,7 +48,7 @@ public class OptionFrame extends JDialog
 	private OptionFrame() {
 		super(LauncherFrame.getInstance(), "AzurPixel v4 | Options", true);
 
-		setSize(260, 270);
+		setSize(260, 300);
 		setResizable(false);
 		setDefaultCloseOperation(HIDE_ON_CLOSE);
 		setLocationRelativeTo(LauncherFrame.getInstance());
@@ -84,10 +86,9 @@ public class OptionFrame extends JDialog
 					}
 					}.start();
 				}
-		});
-
-		
+		});	
 		add(integrityButton);
+		
 		if (AP_SAVER.get("borderless").equals("true"))
 			borderlessCheckBox.setSelected(true);
 		borderlessLabel.setBounds(20, 120, 200, 20);
@@ -104,7 +105,15 @@ public class OptionFrame extends JDialog
 		openAtStartCheckBox.setEnabled(true);
 		add(openAtStartCheckBox);
 		
-		saveButton.setBounds(75, 190, 100, 30);
+		if (AP_SAVER.get("autoConnect").equals("true"))
+			autoConnectCheckBox.setSelected(true);
+		autoConnectLabel.setBounds(20, 190, 200, 30);
+		add(autoConnectLabel);
+		autoConnectCheckBox.setBounds(205, 190, 20, 20);
+		autoConnectCheckBox.setEnabled(true);
+		add(autoConnectCheckBox);
+		
+		saveButton.setBounds(75, 220, 100, 30);
 		saveButton.addMouseListener(new CustomMouseListener() {
 			public void mousePressed(MouseEvent e) {
 				AP_SAVER.set("game-memory", ((GameMemory) memoryComboBox.getSelectedItem()).name());
@@ -114,12 +123,14 @@ public class OptionFrame extends JDialog
 					AP_SAVER.set("borderless", "true");
 				else
 					AP_SAVER.set("borderless", "false");
-				if (openAtStartCheckBox.isSelected()) {
+				if (openAtStartCheckBox.isSelected()) 
 					AP_SAVER.set("openAtStart", "true");
-					AP_SAVER.set("button", "vote");
-				}
 				else
 					AP_SAVER.set("openAtStart", "false");
+				if (autoConnectCheckBox.isSelected()) 
+					AP_SAVER.set("autoConnect", "true");
+				else
+					AP_SAVER.set("autoConnect", "false");
 				setVisible(false);
 			}
 		});
@@ -127,7 +138,7 @@ public class OptionFrame extends JDialog
 
 		gfxLabel.setForeground(Color.BLUE);
 		gfxLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		gfxLabel.setBounds(5, 220, 200, 20);
+		gfxLabel.setBounds(5, 250, 200, 20);
 		gfxLabel.addMouseListener(new CustomMouseListener() {
 			public void mousePressed(MouseEvent e) {
 				WebPage.show("https://www.facebook.com/profile.php?id=100010350648184");
@@ -137,7 +148,7 @@ public class OptionFrame extends JDialog
 
 		swannLabel.setForeground(Color.BLUE);
 		swannLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		swannLabel.setBounds(130, 220, 200, 20);
+		swannLabel.setBounds(130, 250, 200, 20);
 		swannLabel.addMouseListener(new CustomMouseListener() {
 			public void mousePressed(MouseEvent e) {
 				WebPage.show(Launcher.AP_URL);
