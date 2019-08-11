@@ -273,14 +273,9 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 			else if (event.getSource() == settingsButton)
 				OptionFrame.getInstance().setVisible(true);
 			else if (event.getSource() == voteButton)
-			{
-				AP_SAVER.set("button", "vote");
 				WebPage.show(Launcher.AP_URL.concat("/vote"));
-			}
 			else if (event.getSource() == newsButton)
-			{
 				WebPage.show(Launcher.AP_URL);
-			}
 			else if (event.getSource() == disconnectButton)
 			{
 				try {

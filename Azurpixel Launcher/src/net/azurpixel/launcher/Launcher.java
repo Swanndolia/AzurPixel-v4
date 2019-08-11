@@ -59,17 +59,14 @@ public class Launcher {
 	
 	public static void main(String[] args) throws Exception
 	{
-
-		if (AP_SAVER.get("button") == null) 
-			AP_SAVER.set("button", "");
-		if (AP_SAVER.get("openAtStart") == null) 
-			AP_SAVER.set("openAtStart", "false");
-		if (AP_SAVER.get("autoConnect") == null) 
-			AP_SAVER.set("autoConnect", "true");
-		if (AP_SAVER.get("openAtStart").equals("true")) 
-			WebPage.show(AP_URL.concat("/vote"));
 		if(!AP_DIR.exists())
 			AP_DIR.mkdir();
+		if (AP_SAVER.get("premium") == null)
+			AP_SAVER.set("premium", "");
+		if (AP_SAVER.get("openAtStart") == null) 
+			AP_SAVER.set("openAtStart", "false");
+		if (AP_SAVER.get("openAtStart").equals("true")) 
+			WebPage.show(AP_URL.concat("/vote"));
 		Swinger.setSystemLookNFeel();
 		Swinger.setResourcePath("/resources/");
 		AP_UPDATER.addApplication(new FileDeleter());
@@ -156,11 +153,7 @@ public class Launcher {
 			}
 		};
 		
-		if (AP_SAVER.get("verif") == null)
-			AP_SAVER.set("verif", "false");
-		if (AP_SAVER.get("verif").equals("true"))
-			;
-		else {
+		if (AP_SAVER.get("verif") == null	|| AP_SAVER.get("verif").equals("false")) {
 			if (AP_SAVER.get("game-version") == null) 
 				AP_SAVER.set("game-version", "V1_8");
 			if (AP_SAVER.get("game-preset") == null)
@@ -183,8 +176,9 @@ public class Launcher {
 				AP_SAVER.set("error", "true");
 			if (AP_SAVER.get("borderless") == null)
 				AP_SAVER.set("borderless", "true");
-			presetSet();
 		}
+		else
+			;
 		
 		updateThread.start();
 		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des fichiers en cours, veuillez patienter");
@@ -197,12 +191,13 @@ public class Launcher {
 			}
 		}
 		updateThread.interrupt();
+		presetSet();
 		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des fichiers terminée");
 	}
 	
 	public static void presetSet() throws IOException {
 			
-		if ((new File(AP_DIR, "/options.txt").isFile()) && (new File(AP_DIR, "/presets/custom/options.txt").isFile())) {
+		if (new File(AP_DIR, "/options.txt").isFile() && new File(AP_DIR, "/presets/custom/options.txt").isFile()) {
 				replaceFile(new File(AP_DIR, "/options.txt"), new File(AP_DIR, "/presets/custom/options.txt"));
 				replaceFile(new File(AP_DIR, "/optionsof.txt"), new File(AP_DIR, "/presets/custom/optionsof.txt"));
 			}

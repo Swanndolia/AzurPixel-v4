@@ -119,18 +119,18 @@ public class OptionFrame extends JDialog
 				AP_SAVER.set("game-memory", ((GameMemory) memoryComboBox.getSelectedItem()).name());
 				AP_SAVER.set("game-preset", ((GamePreset) presetComboBox.getSelectedItem()).name());
 				AP_SAVER.set("game-version", ((GameVersion) versionComboBox.getSelectedItem()).name());
-				if (borderlessCheckBox.isSelected())
-					AP_SAVER.set("borderless", "true");
-				else
+				if (!borderlessCheckBox.isSelected() || AP_SAVER.get("autoConnect") == null)
 					AP_SAVER.set("borderless", "false");
+				else
+					AP_SAVER.set("borderless", "true");
 				if (openAtStartCheckBox.isSelected()) 
 					AP_SAVER.set("openAtStart", "true");
-				else
+				else 
 					AP_SAVER.set("openAtStart", "false");
-				if (autoConnectCheckBox.isSelected()) 
-					AP_SAVER.set("autoConnect", "true");
-				else
+				if (!autoConnectCheckBox.isSelected() || AP_SAVER.get("autoConnect") == null)
 					AP_SAVER.set("autoConnect", "false");
+				else
+					AP_SAVER.set("autoConnect", "true");
 				setVisible(false);
 			}
 		});
