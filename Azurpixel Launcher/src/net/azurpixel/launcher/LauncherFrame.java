@@ -8,15 +8,17 @@ import java.awt.event.WindowListener;
 
 import javax.swing.JFrame;
 
-import fr.theshark34.supdate.BarAPI;
 import re.alwyn974.swinger.util.WindowMover;
 
 @SuppressWarnings("serial")
 public class LauncherFrame extends JFrame implements WindowListener
 {
 	private static LauncherFrame instance;
-	private LauncherPanel Launcherpanel;
-
+	private LauncherPanel launcherPanel;
+	private OptionPanel optionPanel;
+	private WikiPanel wikiPanel;
+	private StatsPanel statsPanel;
+	
 	public LauncherFrame()
 	{
 		instance = this;
@@ -27,15 +29,23 @@ public class LauncherFrame extends JFrame implements WindowListener
 		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 		setLocationRelativeTo(null);
 		setLayout(null);
+		optionPanel = new OptionPanel();
+		optionPanel.setVisible(false);
+		add(optionPanel);
+		wikiPanel = new WikiPanel();
+		wikiPanel.setVisible(false);
+		add(wikiPanel);
+		statsPanel = new StatsPanel();
+		statsPanel.setVisible(false);
+		add(statsPanel);
+		launcherPanel = new LauncherPanel();
+		add(launcherPanel);
 		WindowMover mover = new WindowMover(this);
 		addMouseListener(mover);
 		addMouseMotionListener(mover);
-
 		addWindowListener(this);
-		this.Launcherpanel = new LauncherPanel();
-		add(Launcherpanel);
 	}
-
+	
 	public static LauncherFrame getInstance()
 	{
 		return instance;
@@ -43,15 +53,27 @@ public class LauncherFrame extends JFrame implements WindowListener
 
 	public LauncherPanel getLauncherPanel()
 	{
-		return this.Launcherpanel;	}	
+		return launcherPanel;	}	
+	
+	public OptionPanel getOptionPanel()
+	{
+		return optionPanel;
+	}	
+	public WikiPanel getWikiPanel()
+	{
+		return wikiPanel;
+	}	
+	
+	public StatsPanel getStatsPanel()
+	{
+		return statsPanel;
+	}	
 	@Override
 	public void windowOpened(WindowEvent e) {}
 
 	@Override
 	public void windowClosing(WindowEvent e) {
 		tryToExit();
-		if (BarAPI.getNumberOfDownloadedFiles() != BarAPI.getNumberOfFileToDownload())
-			Launcher.AP_SAVER.set("error", "true");
 	}
 
 	@Override

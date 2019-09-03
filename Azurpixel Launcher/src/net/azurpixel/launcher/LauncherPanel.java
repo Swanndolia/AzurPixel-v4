@@ -13,25 +13,27 @@ import static net.azurpixel.launcher.Launcher.tryToExit;
 import static re.alwyn974.swinger.Swinger.getResource;
 
 import java.awt.Color;
+import java.awt.Desktop;
 import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 
 import javax.imageio.ImageIO;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import fr.theshark34.openauth.AuthenticationException;
+import javafx.embed.swing.JFXPanel;
 import re.alwyn974.openlauncherlib.LaunchException;
 import re.alwyn974.swinger.event.SwingerEvent;
 import re.alwyn974.swinger.event.SwingerEventListener;
@@ -41,29 +43,40 @@ import re.alwyn974.swinger.textured.STexturedProgressBar;
 
 
 @SuppressWarnings("serial")
-public class LauncherPanel extends JPanel implements SwingerEventListener 
+public class LauncherPanel extends JFXPanel implements SwingerEventListener 
 {
+	public static boolean willRefresh;
 	
 	private Image background = getResource("background.jpg");
-	private BufferedImage news = null;
-	private boolean willRefresh;
+	private Image navbar = getResource("navBar.png");
+	private Image news = null;
+	private Image skin = null;	
 
 	private JTextField usernameField = new JTextField("Mail (premium) / Pseudo");
 	private JPasswordField passwordField = new JPasswordField("Mot de passe (premium)");
-	private STexturedButton voteButton = new STexturedButton(getResource("vote.jpg"), getResource("votehover.jpg"));
-	private STexturedButton disconnectButton = new STexturedButton(getResource("disconnect.png"));
-	private JLabel authLabel = new JLabel("", SwingConstants.CENTER);
+	private STexturedButton voteButton = new STexturedButton(getResource("vote.jpg"), getResource("voteHover.jpg"));
+	private STexturedButton disconnectButton = new STexturedButton(getResource("disconnect.png"), getResource("disconnectHover.png"));
+	
+	private JLabel keepLogin = new JLabel("Rester connecté", SwingConstants.CENTER);
+	
+	private STexturedButton playButton = new STexturedButton(getResource("play.jpg"), getResource("playHover.jpg"));
+	private STexturedButton quitButton = new STexturedButton(getResource("close.png"), getResource("closeHover.png"));
+	private STexturedButton hideButton = new STexturedButton(getResource("hide.png"), getResource("hideHover.png"));
+	private STexturedButton settingsButton = new STexturedButton(getResource("settings.png"), getResource("settingsHover.png"));
 
-	private STexturedButton playButton = new STexturedButton(getResource("play.jpg"), getResource("playhover.jpg"));
+	private STexturedButton leaderBoardButton = new STexturedButton(getResource("leaderBoard.png"), getResource("leaderBoardHover.png"));
+	private STexturedButton achievementsButton = new STexturedButton(getResource("achievements.png"), getResource("achievementsHover.png"));
+	private STexturedButton newsButton = new STexturedButton(getResource("news.png"), getResource("newsHover.png"));
+	private STexturedButton statsButton = new STexturedButton(getResource("stats.png"), getResource("statsHover.png"));
+	private STexturedButton wikiButton = new STexturedButton(getResource("wiki.png"), getResource("wikiHover.png"));
 
-	private STexturedButton quitButton = new STexturedButton(getResource("close.png"));
-	private STexturedButton hideButton = new STexturedButton(getResource("hide.png"));
-	private STexturedButton settingsButton = new STexturedButton(getResource("settings.png"));
-
-	private STexturedButton newsButton = new STexturedButton(getResource("news.jpg"), getResource("newshover.jpg"));
+	private STexturedButton facebookButton = new STexturedButton(getResource("facebook.png"), getResource("facebookHover.png"));
+	private STexturedButton githubButton = new STexturedButton(getResource("github.png"), getResource("githubHover.png"));
+	private STexturedButton discordButton = new STexturedButton(getResource("discord.png"), getResource("discordHover.png"));
+	
 	private STexturedProgressBar progressBar = new STexturedProgressBar(getResource("progressEmpty.jpg"), getResource("progressFull.jpg"));
 	
-	STexturedCheckBox keeploginCheckBox = new STexturedCheckBox(getResource("keep-login.png"), getResource("boxChecked.png"));
+	private STexturedCheckBox keeploginCheckBox = new STexturedCheckBox(getResource("box.png"), getResource("boxChecked.png"));
 
 	
 	@SuppressWarnings("deprecation")
@@ -111,9 +124,15 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 		}
 		}.start();
 	}
-	
+
 	public LauncherPanel()
 	{ 		
+		setOpaque(false);
+		newsLoader();
+		if (AP_SAVER.get("premium").equals("true"))
+			skinLoader(AP_SAVER.get("username"));
+		else
+			skinLoader("");
 		setLayout(null);
 		setSize(1000, 750);
 		willRefresh = !AP_SAVER.get("access-token", "").equals("");
@@ -186,7 +205,7 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 		voteButton.addEventListener(this);
 		add(voteButton);
 
-		disconnectButton.setBounds(198, 536);
+		disconnectButton.setBounds(570, 230);
 		disconnectButton.addEventListener(this);
 		disconnectButton.setVisible(willRefresh);
 		add(disconnectButton);
@@ -195,31 +214,39 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 		playButton.addEventListener(this);
 		add(playButton);
 
-		quitButton.setBounds(950, 15);
+		quitButton.setBounds(950, 20);
 		quitButton.addEventListener(this);
 		add(quitButton);
 
-		hideButton.setBounds(920, 15);
+		hideButton.setBounds(920, 20);
 		hideButton.addEventListener(this);
 		add(hideButton);
 
-		settingsButton.setBounds(890, 15);
+		settingsButton.setBounds(890, 20);
 		settingsButton.addEventListener(this);
 		add(settingsButton);
-
-		newsButton.setBounds(653, 533, 150, 50);
-		newsButton.addEventListener(this);
-		add(newsButton);
 
 		progressBar.setBounds(0, 694, 1000, 56);
 		progressBar.setForeground(new Color(0, 147, 255));
 		progressBar.setFont(usernameField.getFont().deriveFont(26f));
 		progressBar.setString("Connecte toi pour rejoindre AzurPixel !");
-
 	    progressBar.setStringPainted(true);
 		add(progressBar);
 		
-		keeploginCheckBox.setBounds(430, 150, 150, 25);
+		keepLogin.setBounds(350, 240, 200, 20);
+		keepLogin.setForeground(new Color(0, 60, 120, 180));
+		keepLogin.setFont(usernameField.getFont().deriveFont(19f));
+		add(keepLogin);
+		
+	    achievementsButton.setBounds(475, 70);
+	    achievementsButton.addEventListener(this);
+		add(achievementsButton);
+		
+	    githubButton.setBounds(10, 10);
+	    githubButton.addEventListener(this);
+		add(githubButton);
+		
+		keeploginCheckBox.setBounds(530, 237, 30, 30);
 		keeploginCheckBox.setEnabled(true);
 		keeploginCheckBox.setSelected(willRefresh);
 		add(keeploginCheckBox);
@@ -231,11 +258,45 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 					}
 		});
 
-		if (willRefresh)
+		navBar();
+		
+		if (willRefresh) {
 			setInfoText("Bienvenue " + AP_SAVER.get("username"));	
-			if (AP_SAVER.get("premium").equals("true")) 
-				setInfoText("Bienvenue " + AP_SAVER.get("username") + " | Premium");	
+			if (AP_SAVER.get("premium").equals("true")) {
+				setInfoText("Bienvenue " + AP_SAVER.get("username") + " | Premium");
+			}
+		}
+	}
 
+	public void navBar()
+	{
+		wikiButton.setBounds(208, 282);
+		wikiButton.addEventListener(this);
+		add(wikiButton);
+
+		newsButton.setBounds(208, 332);
+		newsButton.addEventListener(this);
+		add(newsButton);
+		
+		statsButton.setBounds(208, 382);
+		statsButton.addEventListener(this);
+		add(statsButton);
+		
+		facebookButton.setBounds(208, 432);
+		facebookButton.addEventListener(this);
+		add(facebookButton);
+		
+		discordButton.setBounds(208, 482);
+		discordButton.addEventListener(this);
+		add(discordButton);		
+		
+	    leaderBoardButton.setBounds(208, 532);
+	    leaderBoardButton.addEventListener(this);
+		add(leaderBoardButton);
+	}
+	
+	public void newsLoader()
+	{
 		new Thread("News Loader"){
 			@Override
 			public void run() {
@@ -245,12 +306,28 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 					news = ImageIO.read(connection.getInputStream());
 					repaint();
 				} catch (IOException ex) {
-					System.err.println("Impossible de charger l'image de news (" + ex + ")");
+					reportException(ex);
 				}
-
 			}
 		}.start();
-	}	
+	}
+	
+	public void skinLoader(String username)
+	{
+		new Thread("Skin Loader"){
+			@Override
+			public void run() {
+				try {
+					URLConnection connection = new URL("https://mc-heads.net/head/" + username + "/100").openConnection();
+					connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.98 Safari/537.36");
+					skin = ImageIO.read(connection.getInputStream());
+					repaint();
+				} catch (IOException ex) {
+					reportException(ex);
+				}
+			}
+		}.start();
+	}
 	
 	public STexturedProgressBar getProgressBar()
 	{
@@ -268,20 +345,50 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 		if (event.getType() == SwingerEvent.BUTTON_CLICKED_EVENT) {
 			if (event.getSource() == quitButton)
 				tryToExit();
+			else if (event.getSource() == facebookButton)
+				try {
+					Desktop.getDesktop().browse(new URI("https://www.facebook.com/azurpixel"));
+				} catch (IOException | URISyntaxException e1) {}
+			else if (event.getSource() == githubButton)
+				try {
+					Desktop.getDesktop().browse(new URI("https://github.com/Swanndolia/AzurPixel-v4"));
+				} catch (IOException | URISyntaxException e1) {}
+			else if (event.getSource() == discordButton)
+				try {
+					Desktop.getDesktop().browse(new URI("https://discord.gg/BRESeuM"));
+				} catch (IOException | URISyntaxException e1) {}
+			else if (event.getSource() == wikiButton)
+				LauncherFrame.getInstance().getWikiPanel().setVisible(true);
+			else if (event.getSource() == statsButton)
+				LauncherFrame.getInstance().getStatsPanel().setVisible(true);
+			else if (event.getSource() == leaderBoardButton)
+				try {
+					Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/p/classement")));
+				} catch (IOException | URISyntaxException e1) {}
+			else if (event.getSource() == newsButton) {
+				LauncherFrame.getInstance().getWikiPanel().setVisible(false);
+				LauncherFrame.getInstance().getStatsPanel().setVisible(false);
+			}
+			else if (event.getSource() == achievementsButton)
+				try {
+					Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/p/succes")));
+				} catch (IOException | URISyntaxException e1) {}
 			else if (event.getSource() == hideButton)
 				LauncherFrame.getInstance().setState(Frame.ICONIFIED);
 			else if (event.getSource() == settingsButton)
-				OptionFrame.getInstance().setVisible(true);
+				LauncherFrame.getInstance().getOptionPanel().setVisible(true);
 			else if (event.getSource() == voteButton)
-				WebPage.show(Launcher.AP_URL.concat("/vote"));
-			else if (event.getSource() == newsButton)
-				WebPage.show(Launcher.AP_URL);
+				try {
+					Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/vote")));
+				} catch (IOException | URISyntaxException e1) {}
 			else if (event.getSource() == disconnectButton)
 			{
 				try {
 					setAuthInfos("", "", "");
 				} catch (AuthenticationException e) {
 				}
+				skinLoader("");
+				AP_SAVER.set("premium", "false");
 				setInfoText("Connecte toi pour rejoindre AzurPixel !");
 				saveInfos(false);
 				setFieldsEnabled(true);
@@ -301,6 +408,9 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 		g.drawImage(background, 0, 0, this);
 		if (news != null)
 			g.drawImage(news, 200, 280, 600, 300, this);
+		if (skin != null)
+			g.drawImage(skin, 450, 130, this);
+		g.drawImage(navbar, 204, 284, this);
 	}
 
 	void setFieldsEnabled(boolean enabled)
@@ -308,6 +418,5 @@ public class LauncherPanel extends JPanel implements SwingerEventListener
 		usernameField.setVisible(enabled);
 		passwordField.setVisible(enabled);
 		playButton.setEnabled(enabled);
-		authLabel.setVisible(!enabled);
 	}
 }

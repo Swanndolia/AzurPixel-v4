@@ -1,7 +1,8 @@
 package net.azurpixel.launcher;
 
 public enum GameVersion {
-	
+
+		VClean("Clean", "assets/indexes/AzurPixel_1.8.json"),
 		V1_8("1.8", "assets/indexes/AzurPixel_1.8.json"),
 		V1_9("1.9", "assets/indexes/AzurPixel_1.9.json"),
 		V1_10("1.10", "assets/indexes/AzurPixel_1.10.json"),

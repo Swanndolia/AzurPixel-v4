@@ -1,5 +1,6 @@
 package net.azurpixel.launcher;
 
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.io.BufferedReader;
@@ -8,11 +9,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 import javax.swing.JOptionPane;
 
+import club.minnced.discord.rpc.DiscordEventHandlers;
+import club.minnced.discord.rpc.DiscordRPC;
+import club.minnced.discord.rpc.DiscordRichPresence;
 import fr.theshark34.openauth.AuthPoints;
 import fr.theshark34.openauth.AuthenticationException;
 import fr.theshark34.openauth.Authenticator;
@@ -53,20 +58,28 @@ public class Launcher {
 	public static final CrashReporter AP_CRASH = new CrashReporter(AP_INFOS.getServerName(), new File(AP_DIR, "crashs"));
 	public static final File AP_LOGS = new File(AP_DIR, "/logs/logs.txt");
 	public static final Authenticator AP_AUTH = new Authenticator("https://authserver.mojang.com/", AuthPoints.NORMAL_AUTH_POINTS);
-			
+    
+	private static DiscordRichPresence presence = new DiscordRichPresence();
+    private static DiscordRPC lib = DiscordRPC.INSTANCE;
+	
 	private static AuthInfos authInfos;
 	private static Thread updateThread;
-	
+	private static Thread updateAssetsThread;
+
 	public static void main(String[] args) throws Exception
 	{
 		if(!AP_DIR.exists())
 			AP_DIR.mkdir();
+	    if (AP_SAVER.get("autoConnect") == null)
+			AP_SAVER.set("autoConnect", "true");
+	    if (AP_SAVER.get("borderless") == null)
+			AP_SAVER.set("borderless", "false");
 		if (AP_SAVER.get("premium") == null)
 			AP_SAVER.set("premium", "");
 		if (AP_SAVER.get("openAtStart") == null) 
 			AP_SAVER.set("openAtStart", "false");
 		if (AP_SAVER.get("openAtStart").equals("true")) 
-			WebPage.show(AP_URL.concat("/vote"));
+			Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/vote")));
 		Swinger.setSystemLookNFeel();
 		Swinger.setResourcePath("/resources/");
 		AP_UPDATER.addApplication(new FileDeleter());
@@ -75,11 +88,36 @@ public class Launcher {
 			new ConnectToServer(AP_IP, "25565");
 		else
 			;
-		
+	    String applicationId = "617320590570815498";
+	    String steamId = "";
+	    DiscordEventHandlers handlers = new DiscordEventHandlers();
+	    lib.Discord_Initialize(applicationId, handlers, true, steamId);
+	    presence.startTimestamp = System.currentTimeMillis() / 1000; // epoch second
+	    presence.details = "Admire le menu";
+	    presence.state = "Empire / SkyAcid";
+	    presence.largeImageKey = "icone";
+	    presence.largeImageText = "azurpixel.net";
+	    updatePresence();
 	}
-		
+	
+	public static void updatePresence() {
+	    lib.Discord_UpdatePresence(presence);
+		Thread t = new Thread(() -> {
+			while (!Thread.currentThread().isInterrupted()) {
+				lib.Discord_RunCallbacks();
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					lib.Discord_Shutdown();
+					break;
+				}
+			}
+		}, "RPC-Callback-Handler");
+		t.start();
+	}
+	
 	public static void copyFile(File from, File to) throws IOException {
-	    Files.copy( from.toPath(), to.toPath());
+	    Files.copy(from.toPath(), to.toPath());
 	} 
 	
 	public static void replaceFile(File from, File to) throws IOException {
@@ -87,23 +125,24 @@ public class Launcher {
 	} 
 	
 	public static void auth(String user, String pass) throws AuthenticationException {
-		if(user.length() != 0) {
+		if (user.length() == 0) {
+			LauncherFrame.getInstance().getLauncherPanel().setInfoText("Veuillez entrer un nom d'utilisateur ou un email valide");
+			LauncherFrame.getInstance().getLauncherPanel().setFieldsEnabled(true);
+		}
+		else {
 			if(pass.length() == 0) {
 				AP_SAVER.set("premium", "false");
 				authInfos = new AuthInfos(user, "sry", "nope");
 			}
-			else if  (user.length() != 0) {
+			else {
 				AP_SAVER.set("premium", "true");
 				AuthResponse rep = AP_AUTH.authenticate(AuthAgent.MINECRAFT, user, pass, AP_SAVER.get("client-token", null));
 				AP_SAVER.set("client-token", rep.getClientToken());
 				authInfos = new AuthInfos(rep.getSelectedProfile().getName(), rep.getAccessToken(), rep.getSelectedProfile().getId());
 			}
 		}
-		else {
-			LauncherFrame.getInstance().getLauncherPanel().setInfoText("Veuillez entrer un nom d'utilisateur ou un email valide");
-			LauncherFrame.getInstance().getLauncherPanel().setFieldsEnabled(true);
 	}
-	}
+	
 	public static void refresh() throws AuthenticationException {
 		if (AP_SAVER.get("premium").equals("true")) {
 			RefreshResponse rep = AP_AUTH.refresh(AP_SAVER.get("access-token"), AP_SAVER.get("client-token"));
@@ -139,7 +178,7 @@ public class Launcher {
 				{
 					if (BarAPI.getNumberOfFileToDownload() == 0)
 					{
-						LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des fichiers en cours, veuillez patienter");
+						LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des versions en cours, veuillez patienter");
 						continue;
 					}
 					this.val = (int) (BarAPI.getNumberOfTotalDownloadedBytes()/1000);
@@ -148,12 +187,11 @@ public class Launcher {
 					progressBar.setValue(this.val);
 					progressBar.setMaximum(this.max);
 
-					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des fichiers " + BarAPI.getNumberOfDownloadedFiles() + "/" + BarAPI.getNumberOfFileToDownload() + " " + Swinger.percentage(this.val, this.max) + "%");
+					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des versions " + BarAPI.getNumberOfDownloadedFiles() + "/" + BarAPI.getNumberOfFileToDownload() + " " + Swinger.percentage(this.val, this.max) + "%");
 				}
 			}
 		};
 		
-		if (AP_SAVER.get("verif") == null	|| AP_SAVER.get("verif").equals("false")) {
 			if (AP_SAVER.get("game-version") == null) 
 				AP_SAVER.set("game-version", "V1_8");
 			if (AP_SAVER.get("game-preset") == null)
@@ -171,30 +209,53 @@ public class Launcher {
 				AP_SAVER.set("natives", "bin/natives/1.14");
 			else
 				AP_SAVER.set("natives", "bin/natives/1.8-1.12");
-		
-			if (AP_SAVER.get("error") == null)
-				AP_SAVER.set("error", "true");
 			if (AP_SAVER.get("borderless") == null)
-				AP_SAVER.set("borderless", "true");
-		}
-		else
-			;
+				AP_SAVER.set("borderless", "false");
 		
 		updateThread.start();
-		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des fichiers en cours, veuillez patienter");
 		AP_UPDATER.start();
-		if (AP_SAVER.get("error").equals("true")) {
-			AP_ASSETSNLIBS.start();
-			if (BarAPI.getNumberOfDownloadedFiles() == BarAPI.getNumberOfFileToDownload()) {
-				AP_SAVER.set("error", "false");
-				AP_SAVER.set("verif", "false");
-			}
-		}
 		updateThread.interrupt();
 		presetSet();
-		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des fichiers terminée");
+		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des versions terminée");
 	}
 	
+	
+	
+	public static void updateAssets() throws Exception
+	{
+		updateAssetsThread = new Thread()
+		{
+			private int val;
+			private int max;
+
+			public void run()
+			{
+				STexturedProgressBar progressBar = LauncherFrame.getInstance().getLauncherPanel().getProgressBar();
+				while (!isInterrupted())
+				{
+					if (BarAPI.getNumberOfFileToDownload() == 0)
+					{
+						LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des assets en cours, veuillez patienter");
+						continue;
+					}
+					this.val = (int) (BarAPI.getNumberOfTotalDownloadedBytes()/1000);
+					this.max = (int) (BarAPI.getNumberOfTotalBytesToDownload()/1000);
+
+					progressBar.setValue(this.val);
+					progressBar.setMaximum(this.max);
+
+					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des asssets " + BarAPI.getNumberOfDownloadedFiles() + "/" + BarAPI.getNumberOfFileToDownload() + " " + Swinger.percentage(this.val, this.max) + "%");
+				}
+			}
+		};
+		
+		updateAssetsThread.start();
+		AP_ASSETSNLIBS.start();
+		updateAssetsThread.interrupt();
+		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des assets terminée");
+
+	}
+
 	public static void presetSet() throws IOException {
 			
 		if (new File(AP_DIR, "/options.txt").isFile() && new File(AP_DIR, "/presets/custom/options.txt").isFile()) {
@@ -277,6 +338,18 @@ public class Launcher {
 
 	public static void launch() throws LaunchException, InterruptedException {
 		
+	    if (AP_SAVER.get("username").equals("Swanndolia"))
+	    	presence.smallImageKey = AP_SAVER.get("username").toLowerCase();
+	    else	
+	    	presence.smallImageKey = "default";
+	    presence.smallImageText = AP_SAVER.get("username");
+	    presence.details = "A rejoint AzurPixel";
+	    presence.state = "Empire / SkyAcid";
+	    presence.largeImageKey = "icone";
+	    presence.largeImageText = "azurpixel.net";
+		presence.partySize = 1;
+		presence.partyMax  = 4;
+		updatePresence();
 		ExternalLaunchProfile profile = MinecraftLauncher.createExternalProfile(AP_INFOS, new GameFolder("assets", AP_SAVER.get("libs"), AP_SAVER.get("natives"), AP_SAVER.get("bin")), authInfos);
 		
 		GameMemory gameMemory = GameMemory.XMX1G;
@@ -285,7 +358,6 @@ public class Launcher {
 		} catch (IllegalArgumentException ex) {
 			reportException(ex);
 		}
-		
 		profile.getVmArgs().addAll(0, gameMemory.getVmArgs());
 		if (AP_SAVER.get("borderless").equals("true"))
 			profile.getVmArgs().add("-Dorg.lwjgl.opengl.Window.undecorated=true");
