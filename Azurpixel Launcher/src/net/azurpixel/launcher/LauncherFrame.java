@@ -41,9 +41,10 @@ public class LauncherFrame extends JFrame implements WindowListener
 		launcherPanel = new LauncherPanel();
 		add(launcherPanel);
 		WindowMover mover = new WindowMover(this);
+		addWindowListener(this);
 		addMouseListener(mover);
 		addMouseMotionListener(mover);
-		addWindowListener(this);
+
 	}
 	
 	public static LauncherFrame getInstance()

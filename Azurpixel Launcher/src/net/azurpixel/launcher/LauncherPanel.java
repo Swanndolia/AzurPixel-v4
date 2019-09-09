@@ -3,7 +3,6 @@ package net.azurpixel.launcher;
 import static net.azurpixel.launcher.Launcher.AP_IMG;
 import static net.azurpixel.launcher.Launcher.AP_SAVER;
 import static net.azurpixel.launcher.Launcher.auth;
-import static net.azurpixel.launcher.Launcher.interruptUpdateThread;
 import static net.azurpixel.launcher.Launcher.launch;
 import static net.azurpixel.launcher.Launcher.refresh;
 import static net.azurpixel.launcher.Launcher.reportException;
@@ -34,6 +33,7 @@ import javax.swing.SwingConstants;
 
 import fr.theshark34.openauth.AuthenticationException;
 import javafx.embed.swing.JFXPanel;
+import net.azurpixel.launcher.MinecraftPing.MinecraftPingReply;
 import re.alwyn974.openlauncherlib.LaunchException;
 import re.alwyn974.swinger.event.SwingerEvent;
 import re.alwyn974.swinger.event.SwingerEventListener;
@@ -57,7 +57,9 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 	private STexturedButton voteButton = new STexturedButton(getResource("vote.jpg"), getResource("voteHover.jpg"));
 	private STexturedButton disconnectButton = new STexturedButton(getResource("disconnect.png"), getResource("disconnectHover.png"));
 	
-	private JLabel keepLogin = new JLabel("Rester connecté", SwingConstants.CENTER);
+	private JLabel keepLoginLabel = new JLabel("Rester connecté", SwingConstants.CENTER);
+	public JLabel pingLabel = new JLabel("", SwingConstants.CENTER);
+	public JLabel infoLabel = new JLabel("", SwingConstants.CENTER);
 	
 	private STexturedButton playButton = new STexturedButton(getResource("play.jpg"), getResource("playHover.jpg"));
 	private STexturedButton quitButton = new STexturedButton(getResource("close.png"), getResource("closeHover.png"));
@@ -80,53 +82,55 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 
 	
 	@SuppressWarnings("deprecation")
-	public void Play() {
-		if(passwordField.getText().equals("Mot de passe (premium)")) 
-			 passwordField.setText("");
-		if(usernameField.getText().equals("Mail (premium) / Pseudo")) 
-			 usernameField.setText("");
-		setFieldsEnabled(false);
-		new Thread("Launch procedure") {
-		@Override
-		public void run() {
-			try {
-				if (willRefresh)
-					refresh();
-				else{
-					auth(usernameField.getText(), passwordField.getText());
+	public void play() {
+			if(passwordField.getText().equals("Mot de passe (premium)")) 
+				passwordField.setText("");
+			if(usernameField.getText().equals("Mail (premium) / Pseudo")) 
+				usernameField.setText("");
+			setFieldsEnabled(false);
+			new Thread("Launch procedure") {
+				@Override
+				public void run() {
+					try {
+						if (willRefresh)
+							refresh();
+						else{
+							auth(usernameField.getText(), passwordField.getText());
+						}
+					} catch (AuthenticationException ex) {
+						setInfoText(ex.getErrorModel().getErrorMessage());
+						willRefresh = false;
+						setFieldsEnabled(true);
+						return;
+					}
+					saveInfos(keeploginCheckBox.isSelected());
+					willRefresh = true;
+					try {
+						if (!Launcher.inUpdate)
+							launch();
+					} catch (LaunchException | InterruptedException ex) {
+						ex.printStackTrace();
+						setFieldsEnabled(true);
+						setInfoText("Impossible de lancer le jeu. (" + ex + ")");
+						reportException(ex);
+					}
+					if (!Launcher.inUpdate)
+						Launcher.presence.details = "A rejoint azurpixel";
+					disconnectButton.setVisible(false);
 				}
-			} catch (AuthenticationException ex) {
-				setInfoText(ex.getErrorModel().getErrorMessage());
-				willRefresh = false;
-				setFieldsEnabled(true);
-				return;
-				}
-			saveInfos(keeploginCheckBox.isSelected());
-			willRefresh = true;
-			try {
-				Launcher.update();
-			} catch (Exception ex) {
-				ex.printStackTrace();
-				interruptUpdateThread();
-				setInfoText("La mise à jour a échoué. (" + ex + ")");
-				reportException(ex);
-				AP_SAVER.set("error", "true");
-				return;
-			}
-			try {
-				launch();
-			} catch (LaunchException | InterruptedException ex) {
-				ex.printStackTrace();
-				setInfoText("Impossible de lancer le jeu. (" + ex + ")");
-				reportException(ex);
-			}
-			disconnectButton.setVisible(false);
+			}.start();
 		}
-		}.start();
-	}
 
 	public LauncherPanel()
 	{ 		
+		
+		addKeyListener(new KeyAdapter() {
+			public void keyPressed(KeyEvent e) {
+		        if (e.getKeyCode() == KeyEvent.VK_ENTER)
+						play();
+					}
+		});
+		
 		setOpaque(false);
 		newsLoader();
 		if (AP_SAVER.get("premium").equals("true"))
@@ -136,9 +140,10 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 		setLayout(null);
 		setSize(1000, 750);
 		willRefresh = !AP_SAVER.get("access-token", "").equals("");
-
-		usernameField.setForeground(new Color(0, 80, 150));
-		usernameField.setCaretColor(new Color(0, 80, 150));
+		
+		usernameField.setHorizontalAlignment(JTextField.CENTER);
+		usernameField.setForeground(new Color(0, 147, 255));
+		usernameField.setCaretColor(new Color(0, 147, 255));
 		usernameField.setFont(usernameField.getFont().deriveFont(26f));
 		usernameField.setOpaque(false);
 		usernameField.setBorder(null);
@@ -149,8 +154,8 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 			public void mousePressed(MouseEvent e) {
 				if((usernameField.getText().equals("Mail (premium) / Pseudo")) && (e.getSource() == (usernameField))) {
 					usernameField.setText("");
-					usernameField.setForeground(new Color(0, 147, 255));
-					usernameField.setCaretColor(new Color(0, 147, 255));
+					usernameField.setForeground(new Color(0, 80, 150));
+					usernameField.setCaretColor(new Color(0, 80, 150));
 				}
 			}});
 	    
@@ -158,16 +163,17 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 			public void keyPressed(KeyEvent e) {
                 if(usernameField.getText().equals("Mail (premium) / Pseudo")) {
                 	usernameField.setText("");
-            		usernameField.setForeground(new Color(0, 147, 255));
-            		usernameField.setCaretColor(new Color(0, 147, 255));
+            		usernameField.setForeground(new Color(0, 80, 150));
+            		usernameField.setCaretColor(new Color(0, 80, 150));
                 }
 		        if (e.getKeyCode() == KeyEvent.VK_ENTER)
-						Play();
+						play();
 					}
 		});
-				
-		passwordField.setForeground(new Color(0, 80, 150));
-		passwordField.setCaretColor(new Color(0, 80, 150));
+		
+		passwordField.setHorizontalAlignment(JTextField.CENTER);
+		passwordField.setForeground(new Color(0, 147, 255));
+		passwordField.setCaretColor(new Color(0, 147, 255));
 		passwordField.setFont(passwordField.getFont().deriveFont(26f));
     	passwordField.setEchoChar((char)0);
 		passwordField.setOpaque(false);
@@ -181,8 +187,8 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 				if((passwordField.getText().equals("Mot de passe (premium)")) && (e.getSource() == (passwordField))) {
                 	passwordField.setText("");
         			passwordField.setEchoChar('•');
-                	passwordField.setForeground(new Color(0, 147, 255));
-                	passwordField.setCaretColor(new Color(0, 147, 255));
+                	passwordField.setForeground(new Color(0, 80, 150));
+                	passwordField.setCaretColor(new Color(0, 80, 150));
                 }
 			}
 			});
@@ -193,11 +199,11 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
                 if(passwordField.getText().equals("Mot de passe (premium)")) {
             			passwordField.setText("");
             			passwordField.setEchoChar('•');
-            			passwordField.setForeground(new Color(0, 147, 255));
-            			passwordField.setCaretColor(new Color(0, 147, 255));
+            			passwordField.setForeground(new Color(0, 80, 150));
+            			passwordField.setCaretColor(new Color(0, 80, 150));
             	}
                	if (e.getKeyCode() == KeyEvent.VK_ENTER)
-						Play();
+						play();
 					}
 		});
  		
@@ -210,9 +216,9 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 		disconnectButton.setVisible(willRefresh);
 		add(disconnectButton);
 
-		playButton.setBounds(130, 135);
-		playButton.addEventListener(this);
-		add(playButton);
+		getPlayButton().setBounds(130, 135);
+		getPlayButton().addEventListener(this);
+		add(getPlayButton());
 
 		quitButton.setBounds(950, 20);
 		quitButton.addEventListener(this);
@@ -226,23 +232,33 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 		settingsButton.addEventListener(this);
 		add(settingsButton);
 
-		progressBar.setBounds(0, 694, 1000, 56);
-		progressBar.setForeground(new Color(0, 147, 255));
+		progressBar.setBounds(0, 694, 998, 56);
+		progressBar.setForeground(new Color(120, 0, 0));
 		progressBar.setFont(usernameField.getFont().deriveFont(26f));
 		progressBar.setString("Connecte toi pour rejoindre AzurPixel !");
 	    progressBar.setStringPainted(true);
 		add(progressBar);
 		
-		keepLogin.setBounds(350, 240, 200, 20);
-		keepLogin.setForeground(new Color(0, 60, 120, 180));
-		keepLogin.setFont(usernameField.getFont().deriveFont(19f));
-		add(keepLogin);
+		keepLoginLabel.setBounds(350, 240, 200, 20);
+		keepLoginLabel.setForeground(new Color(0, 60, 120, 180));
+		keepLoginLabel.setFont(usernameField.getFont().deriveFont(20f));
+		add(keepLoginLabel);
+		
+		pingLabel.setBounds(-10, 10, 100, 30);
+		pingLabel.setForeground(new Color(0, 80, 0));
+		pingLabel.setFont(usernameField.getFont().deriveFont(20f));
+		add(pingLabel);
+		
+		infoLabel.setBounds(75, 10, 250, 30);
+		infoLabel.setForeground(new Color(0, 80, 0));
+		infoLabel.setFont(usernameField.getFont().deriveFont(20f));
+		add(infoLabel);
 		
 	    achievementsButton.setBounds(475, 70);
 	    achievementsButton.addEventListener(this);
 		add(achievementsButton);
 		
-	    githubButton.setBounds(10, 10);
+	    githubButton.setBounds(935, 640);
 	    githubButton.addEventListener(this);
 		add(githubButton);
 		
@@ -250,15 +266,9 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 		keeploginCheckBox.setEnabled(true);
 		keeploginCheckBox.setSelected(willRefresh);
 		add(keeploginCheckBox);
-		keeploginCheckBox.addKeyListener(new KeyAdapter() 
-		{
-			public void keyPressed(KeyEvent e) {
-		           if (e.getKeyCode() == KeyEvent.VK_ENTER)
-						Play();
-					}
-		});
 
 		navBar();
+		pingShow();
 		
 		if (willRefresh) {
 			setInfoText("Bienvenue " + AP_SAVER.get("username"));	
@@ -266,8 +276,44 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 				setInfoText("Bienvenue " + AP_SAVER.get("username") + " | Premium");
 			}
 		}
+	}	
+	
+	public void pingShow()
+	{
+		new Thread("Ping Updater"){
+			@Override
+			public void run() {
+				while (true) {
+					MinecraftPingReply data;
+					try {
+						data = new MinecraftPing().getPing(AP_SAVER.get("ip"), 25565);
+						pingLabel.setText(data.getLatency() + "ms");
+					    infoLabel.setText(data.getPlayers().getOnline() + "/" + data.getPlayers().getMax() + " joueurs en ligne");
+					    if (data.getLatency() < 40)
+							pingLabel.setForeground(new Color(0, 80, 0));
+					    if (data.getLatency() > 40)
+							pingLabel.setForeground(new Color(20, 80, 0));
+					    if (data.getLatency() > 60)
+							pingLabel.setForeground(new Color(40, 80, 0));
+					    if (data.getLatency() > 80)
+							pingLabel.setForeground(new Color(60, 80, 0));
+					    if (data.getLatency() > 100)
+							pingLabel.setForeground(new Color(80, 80, 0));
+					    if (data.getLatency() > 125)
+							pingLabel.setForeground(new Color(80, 60, 0));
+					    if (data.getLatency() > 150)
+							pingLabel.setForeground(new Color(80, 40, 0));
+					    if (data.getLatency() > 175)
+							pingLabel.setForeground(new Color(80, 20, 0));
+					    if (data.getLatency() > 200)
+							pingLabel.setForeground(new Color(80, 0, 0));
+						Thread.sleep(1000);
+					} catch (IOException e1) {} catch (InterruptedException e) {}
+				}
+			}
+		}.start();
 	}
-
+	
 	public void navBar()
 	{
 		wikiButton.setBounds(208, 282);
@@ -328,17 +374,22 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 			}
 		}.start();
 	}
+
+	public void setInfoText(String infoText)
+	{
+		progressBar.setString(infoText);
+	}
+
+	public String getInfoText()
+	{
+		return progressBar.getString();
+	}
 	
 	public STexturedProgressBar getProgressBar()
 	{
 		return progressBar;
 	}
 	
-	public void setInfoText(String infoText)
-	{
-		progressBar.setString(infoText);
-	}
-
 	@Override
 	public void onEvent(SwingerEvent event)
 	{		
@@ -347,38 +398,53 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 				tryToExit();
 			else if (event.getSource() == facebookButton)
 				try {
+				    Launcher.presence.details = "Regarde les actus fb";
 					Desktop.getDesktop().browse(new URI("https://www.facebook.com/azurpixel"));
 				} catch (IOException | URISyntaxException e1) {}
 			else if (event.getSource() == githubButton)
 				try {
+				    Launcher.presence.details = "Vérifie sur le code";
 					Desktop.getDesktop().browse(new URI("https://github.com/Swanndolia/AzurPixel-v4"));
 				} catch (IOException | URISyntaxException e1) {}
 			else if (event.getSource() == discordButton)
 				try {
+				    Launcher.presence.details = "Rejoint le serveur discord";
 					Desktop.getDesktop().browse(new URI("https://discord.gg/BRESeuM"));
 				} catch (IOException | URISyntaxException e1) {}
-			else if (event.getSource() == wikiButton)
+			else if (event.getSource() == wikiButton) {
+			    Launcher.presence.details = "Se renseigne sur le wiki";
 				LauncherFrame.getInstance().getWikiPanel().setVisible(true);
-			else if (event.getSource() == statsButton)
+			}
+			else if (event.getSource() == statsButton) {
+			    Launcher.presence.details = "Statistiques ? Fantastique !";
 				LauncherFrame.getInstance().getStatsPanel().setVisible(true);
+			}
 			else if (event.getSource() == leaderBoardButton)
 				try {
+				    Launcher.presence.details = "Admire le classement";
 					Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/p/classement")));
 				} catch (IOException | URISyntaxException e1) {}
 			else if (event.getSource() == newsButton) {
+			    Launcher.presence.details = "Matte les nouveautés";
 				LauncherFrame.getInstance().getWikiPanel().setVisible(false);
 				LauncherFrame.getInstance().getStatsPanel().setVisible(false);
 			}
 			else if (event.getSource() == achievementsButton)
 				try {
+				    Launcher.presence.details = "Apprécie ses achievements";
 					Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/p/succes")));
 				} catch (IOException | URISyntaxException e1) {}
-			else if (event.getSource() == hideButton)
+			else if (event.getSource() == hideButton) {
+			    Launcher.presence.details = "Occupé à autre chose";
 				LauncherFrame.getInstance().setState(Frame.ICONIFIED);
-			else if (event.getSource() == settingsButton)
+			}
+			else if (event.getSource() == settingsButton) {
+			    Launcher.presence.details = "Bidouille les options";
 				LauncherFrame.getInstance().getOptionPanel().setVisible(true);
+			}
 			else if (event.getSource() == voteButton)
 				try {
+				    Launcher.presence.details = "Vote pour azurpixel";
 					Desktop.getDesktop().browse(new URI(Launcher.AP_URL.concat("/vote")));
 				} catch (IOException | URISyntaxException e1) {}
 			else if (event.getSource() == disconnectButton)
@@ -395,9 +461,9 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 				disconnectButton.setVisible(false);
 				willRefresh = false;
 			}
-			else if (event.getSource() == playButton) {
-				Play();
-			}
+			else if (event.getSource() == getPlayButton())
+				play();
+		Launcher.updatePresence();
 		}
 	}
 
@@ -417,6 +483,10 @@ public class LauncherPanel extends JFXPanel implements SwingerEventListener
 	{
 		usernameField.setVisible(enabled);
 		passwordField.setVisible(enabled);
-		playButton.setEnabled(enabled);
+		getPlayButton().setEnabled(enabled);
+	}
+
+	public STexturedButton getPlayButton() {
+		return playButton;
 	}
 }

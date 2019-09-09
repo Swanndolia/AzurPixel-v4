@@ -46,30 +46,32 @@ import re.alwyn974.swinger.textured.STexturedProgressBar;
 
 public class Launcher {
 	
-	public static final String AP_IP = "azurpixel.net";
+	public static Boolean inUpdate = true;
 	public static final String AP_URL = "https://azurpixel.net";
 	public static final String AP_IMG  = AP_URL.concat("/app/webroot/img/uploads/");
 	public static GameVersion AP_VERSION = new GameVersion("AzurPixel_V1_8", GameType.V1_8_HIGHER);
 	public static GameInfos AP_INFOS = new GameInfos("AzurPixel v4", AP_VERSION, new GameTweak[] {GameTweak.OPTIFINE});
 	public static final File AP_DIR = AP_INFOS.getGameDir();
 	public static final SUpdate AP_UPDATER = new SUpdate(AP_URL.concat("/launcher/update"), AP_DIR);
-	public static final SUpdate AP_ASSETSNLIBS = new SUpdate(AP_URL.concat("/launcher/assetsNlibs"), AP_DIR);
+	public static final SUpdate AP_ASSETS = new SUpdate(AP_URL.concat("/launcher/assets"), AP_DIR);
 	public static final Saver AP_SAVER = new Saver(new File(AP_DIR, "AzurPixel.properties"));
 	public static final CrashReporter AP_CRASH = new CrashReporter(AP_INFOS.getServerName(), new File(AP_DIR, "crashs"));
 	public static final File AP_LOGS = new File(AP_DIR, "/logs/logs.txt");
 	public static final Authenticator AP_AUTH = new Authenticator("https://authserver.mojang.com/", AuthPoints.NORMAL_AUTH_POINTS);
     
-	private static DiscordRichPresence presence = new DiscordRichPresence();
+	public static DiscordRichPresence presence = new DiscordRichPresence();
     private static DiscordRPC lib = DiscordRPC.INSTANCE;
 	
 	private static AuthInfos authInfos;
 	private static Thread updateThread;
 	private static Thread updateAssetsThread;
-
+	
 	public static void main(String[] args) throws Exception
 	{
 		if(!AP_DIR.exists())
 			AP_DIR.mkdir();
+	    if (AP_SAVER.get("ip") == null)
+			AP_SAVER.set("ip", "azurpixel.net");
 	    if (AP_SAVER.get("autoConnect") == null)
 			AP_SAVER.set("autoConnect", "true");
 	    if (AP_SAVER.get("borderless") == null)
@@ -84,20 +86,18 @@ public class Launcher {
 		Swinger.setResourcePath("/resources/");
 		AP_UPDATER.addApplication(new FileDeleter());
 		new LauncherFrame().setVisible(true);
-		if (AP_SAVER.get("autoConnect").equals("true"))
-			new ConnectToServer(AP_IP, "25565");
-		else
-			;
+
 	    String applicationId = "617320590570815498";
 	    String steamId = "";
 	    DiscordEventHandlers handlers = new DiscordEventHandlers();
 	    lib.Discord_Initialize(applicationId, handlers, true, steamId);
 	    presence.startTimestamp = System.currentTimeMillis() / 1000; // epoch second
-	    presence.details = "Admire le menu";
+	    presence.details = "Viens de lancer le launcher";
 	    presence.state = "Empire / SkyAcid";
 	    presence.largeImageKey = "icone";
 	    presence.largeImageText = "azurpixel.net";
 	    updatePresence();
+	    update();
 	}
 	
 	public static void updatePresence() {
@@ -126,7 +126,7 @@ public class Launcher {
 	
 	public static void auth(String user, String pass) throws AuthenticationException {
 		if (user.length() == 0) {
-			LauncherFrame.getInstance().getLauncherPanel().setInfoText("Veuillez entrer un nom d'utilisateur ou un email valide");
+			LauncherFrame.getInstance().getLauncherPanel().setInfoText("Erreur, veuillez entrer un pseudo valide");
 			LauncherFrame.getInstance().getLauncherPanel().setFieldsEnabled(true);
 		}
 		else {
@@ -158,6 +158,7 @@ public class Launcher {
 
 	public static void saveInfos(boolean keepLogin) {
 		AP_SAVER.set("username", authInfos.getUsername());
+		LauncherFrame.getInstance().getLauncherPanel().skinLoader(authInfos.getUsername());
 		String accessToken = "";
 		if (keepLogin)
 			accessToken = authInfos.getAccessToken();
@@ -166,6 +167,7 @@ public class Launcher {
 		
 	public static void update() throws Exception
 	{
+		LauncherFrame.getInstance().getLauncherPanel().getPlayButton().setEnabled(false);
 		updateThread = new Thread()
 		{
 			private int val;
@@ -173,6 +175,7 @@ public class Launcher {
 
 			public void run()
 			{
+
 				STexturedProgressBar progressBar = LauncherFrame.getInstance().getLauncherPanel().getProgressBar();
 				while (!isInterrupted())
 				{
@@ -181,14 +184,19 @@ public class Launcher {
 						LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des versions en cours, veuillez patienter");
 						continue;
 					}
-					this.val = (int) (BarAPI.getNumberOfTotalDownloadedBytes()/1000);
-					this.max = (int) (BarAPI.getNumberOfTotalBytesToDownload()/1000);
+					val = (int) (BarAPI.getNumberOfTotalDownloadedBytes() / 1000);
+					max = (int) (BarAPI.getNumberOfTotalBytesToDownload() / 1000);
 
-					progressBar.setValue(this.val);
-					progressBar.setMaximum(this.max);
+					progressBar.setValue(val);
+					progressBar.setMaximum(max);
 
-					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des versions " + BarAPI.getNumberOfDownloadedFiles() + "/" + BarAPI.getNumberOfFileToDownload() + " " + Swinger.percentage(this.val, this.max) + "%");
+					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des versions " + Swinger.percentage(val, max) + "%  (1/2)");
 				}
+				LauncherFrame.getInstance().getLauncherPanel().getPlayButton().setEnabled(true);
+			    if (AP_SAVER.get("assetsNlibs") == (null) || AP_SAVER.get("assetsNlibs").equals("bad"))
+					try {
+						updateAssets();
+					} catch (Exception e) {}
 			}
 		};
 		
@@ -198,19 +206,6 @@ public class Launcher {
 				AP_SAVER.set("game-preset", "low");
 			if (AP_SAVER.get("game-memory") == null)
 				AP_SAVER.set("game-memory", "XMX1G");
-			AP_SAVER.set("libs", "libs/" + AP_SAVER.get("game-version"));
-			AP_SAVER.set("bin", "bin/azurpixel_" + AP_SAVER.get("game-version") + ".jar");
-			AP_VERSION = new GameVersion("AzurPixel_" + AP_SAVER.get("game-version"), GameType.V1_8_HIGHER);
-			AP_INFOS = new GameInfos("AzurPixel v4", AP_VERSION, new GameTweak[] {GameTweak.OPTIFINE});
-		
-			if (AP_SAVER.get("game-version") == "V1_13") 
-				AP_SAVER.set("natives", "bin/natives/1.13");
-			else if (AP_SAVER.get("game-version") == "V1_14")
-				AP_SAVER.set("natives", "bin/natives/1.14");
-			else
-				AP_SAVER.set("natives", "bin/natives/1.8-1.12");
-			if (AP_SAVER.get("borderless") == null)
-				AP_SAVER.set("borderless", "false");
 		
 		updateThread.start();
 		AP_UPDATER.start();
@@ -238,26 +233,41 @@ public class Launcher {
 						LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des assets en cours, veuillez patienter");
 						continue;
 					}
-					this.val = (int) (BarAPI.getNumberOfTotalDownloadedBytes()/1000);
-					this.max = (int) (BarAPI.getNumberOfTotalBytesToDownload()/1000);
+					this.val = BarAPI.getNumberOfDownloadedFiles();
+					this.max = BarAPI.getNumberOfFileToDownload();
 
 					progressBar.setValue(this.val);
 					progressBar.setMaximum(this.max);
 
-					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des asssets " + BarAPI.getNumberOfDownloadedFiles() + "/" + BarAPI.getNumberOfFileToDownload() + " " + Swinger.percentage(this.val, this.max) + "%");
+					LauncherFrame.getInstance().getLauncherPanel().setInfoText("Téléchargement des assets " + Swinger.percentage(this.val, this.max) + "%  (2/2)");
 				}
+				inUpdate = false;
 			}
 		};
 		
 		updateAssetsThread.start();
-		AP_ASSETSNLIBS.start();
+		AP_ASSETS.start();
 		updateAssetsThread.interrupt();
 		LauncherFrame.getInstance().getLauncherPanel().setInfoText("Vérification des assets terminée");
-
+		AP_SAVER.set("assetsNlibs", "fine");
 	}
-
+	
 	public static void presetSet() throws IOException {
 			
+		if (AP_SAVER.get("game-version") == "V1_13") 
+			AP_SAVER.set("natives", "bin/natives/1.13");
+		else if (AP_SAVER.get("game-version") == "V1_14")
+			AP_SAVER.set("natives", "bin/natives/1.14");
+		else
+			AP_SAVER.set("natives", "bin/natives/1.8-1.12");
+		if (AP_SAVER.get("borderless") == null)
+			AP_SAVER.set("borderless", "false");
+		
+		AP_SAVER.set("libs", "libs/" + AP_SAVER.get("game-version"));
+		AP_SAVER.set("bin", "bin/azurpixel_" + AP_SAVER.get("game-version") + ".jar");
+		AP_VERSION = new GameVersion("AzurPixel_" + AP_SAVER.get("game-version"), GameType.V1_8_HIGHER);
+		AP_INFOS = new GameInfos("AzurPixel v4", AP_VERSION, new GameTweak[] {GameTweak.OPTIFINE});
+		
 		if (new File(AP_DIR, "/options.txt").isFile() && new File(AP_DIR, "/presets/custom/options.txt").isFile()) {
 				replaceFile(new File(AP_DIR, "/options.txt"), new File(AP_DIR, "/presets/custom/options.txt"));
 				replaceFile(new File(AP_DIR, "/optionsof.txt"), new File(AP_DIR, "/presets/custom/optionsof.txt"));
@@ -328,7 +338,7 @@ public class Launcher {
 		fichierW.close();  
 		fichier.close(); 
 		tmp.renameTo(dirFrom); 
-		tmp.delete();
+		new File(AP_DIR, "/tmp.txt").delete();
 	}
 	
 	public static void interruptUpdateThread()
@@ -336,8 +346,10 @@ public class Launcher {
 		updateThread.interrupt();
 	}
 
-	public static void launch() throws LaunchException, InterruptedException {
-		
+	public static void launch() throws LaunchException, InterruptedException 
+	{
+		if (AP_SAVER.get("autoConnect").equals("true"))
+			new ConnectToServer(AP_SAVER.get("ip"), "25565");
 	    if (AP_SAVER.get("username").equals("Swanndolia"))
 	    	presence.smallImageKey = AP_SAVER.get("username").toLowerCase();
 	    else	
@@ -393,6 +405,7 @@ public class Launcher {
 						"Voulez-vous vraiment interrompre le téléchargement en cours ?", "Téléchargement en cours",
 						JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE
 				) != JOptionPane.YES_OPTION)
+			AP_SAVER.set("assetsNlibs", "bad");
 			return;
 		System.exit(0);
 	}

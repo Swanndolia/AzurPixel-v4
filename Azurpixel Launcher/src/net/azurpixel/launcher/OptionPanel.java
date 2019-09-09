@@ -8,6 +8,8 @@ import java.awt.Cursor;
 import java.awt.Desktop;
 import java.awt.Graphics;
 import java.awt.Image;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.URI;
@@ -15,8 +17,9 @@ import java.net.URISyntaxException;
 
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JTextField;
 
-import fr.theshark34.supdate.BarAPI;
+
 import javafx.embed.swing.JFXPanel;
 import re.alwyn974.swinger.Swinger;
 import re.alwyn974.swinger.event.SwingerEvent;
@@ -39,11 +42,45 @@ public class OptionPanel extends JFXPanel implements SwingerEventListener {
 	private static STexturedCheckBox autoConnectCheckBox = new STexturedCheckBox(getResource("box.png"), getResource("boxChecked.png"));
 	private static STexturedCheckBox openAtStartCheckBox = new STexturedCheckBox(getResource("box.png"), getResource("boxChecked.png"));
 	
+	
+	private JTextField ipTextField = new JTextField(AP_SAVER.get("ip"));
+	
 	private JLabel swannLabel = new JLabel("<html><u>Développeur Swanndolia</u></html>");
 	private JLabel gfxLabel = new JLabel("<html><u>Graphiste Morgann Ej</u></html>");
 	
+	public void save() {
+	    Launcher.presence.details = "Admire le launcher";
+		Launcher.updatePresence();
+		AP_SAVER.set("game-memory", ((GameMemory) memoryComboBox.getSelectedItem()).name());
+		AP_SAVER.set("game-preset", ((GamePreset) presetComboBox.getSelectedItem()).name());
+		AP_SAVER.set("game-version", ((GameVersion) versionComboBox.getSelectedItem()).name());
+		if (!borderlessCheckBox.isSelected())
+			AP_SAVER.set("borderless", "false");
+		else
+			AP_SAVER.set("borderless", "true");
+		if (openAtStartCheckBox.isSelected()) 
+			AP_SAVER.set("openAtStart", "true");
+		else 
+			AP_SAVER.set("openAtStart", "false");
+		if (!autoConnectCheckBox.isSelected())
+			AP_SAVER.set("autoConnect", "false");
+		else
+			AP_SAVER.set("autoConnect", "true");
+		setVisible(false);
+		AP_SAVER.set("ip", ipTextField.getText());
+	}
+
+
+	
 	public OptionPanel()
-    {
+    {	
+		addKeyListener(new KeyAdapter() {
+			public void keyPressed(KeyEvent e) {
+		        if (e.getKeyCode() == KeyEvent.VK_ENTER)
+						save();
+					}
+		});
+		
 		Swinger.setResourcePath("/resources/");
 		setBounds(200,280,600,300);
 		setLayout(null);
@@ -67,7 +104,6 @@ public class OptionPanel extends JFXPanel implements SwingerEventListener {
 							Launcher.reportException(ex);
 							}
 						try {
-							BarAPI.setNumberOfDownloadedFiles(0);
 							Launcher.update();
 						} catch (Exception ex) {
 							Launcher.reportException(ex);
@@ -96,25 +132,25 @@ public class OptionPanel extends JFXPanel implements SwingerEventListener {
 		autoConnectCheckBox.setEnabled(true);
 		add(autoConnectCheckBox);
 		
+		ipTextField.setForeground(new Color(100, 0, 0));
+		ipTextField.setCaretColor(new Color(100, 0, 0));
+		ipTextField.setFont(ipTextField.getFont().deriveFont(22f));
+		ipTextField.setOpaque(false);
+		ipTextField.setBorder(null);
+		ipTextField.setBounds(287, 220, 212, 30);
+		ipTextField.setHorizontalAlignment(JTextField.CENTER);
+		add(ipTextField);
+		ipTextField.addKeyListener(new KeyAdapter() {
+			public void keyPressed(KeyEvent e) {
+		        if (e.getKeyCode() == KeyEvent.VK_ENTER)
+						save();
+					}
+		});
+
 		saveButton.setBounds(225, 240, 150, 60);
 		saveButton.addMouseListener(new CustomMouseListener() {
 			public void mousePressed(MouseEvent e) {
-				AP_SAVER.set("game-memory", ((GameMemory) memoryComboBox.getSelectedItem()).name());
-				AP_SAVER.set("game-preset", ((GamePreset) presetComboBox.getSelectedItem()).name());
-				AP_SAVER.set("game-version", ((GameVersion) versionComboBox.getSelectedItem()).name());
-				if (!borderlessCheckBox.isSelected())
-					AP_SAVER.set("borderless", "false");
-				else
-					AP_SAVER.set("borderless", "true");
-				if (openAtStartCheckBox.isSelected()) 
-					AP_SAVER.set("openAtStart", "true");
-				else 
-					AP_SAVER.set("openAtStart", "false");
-				if (!autoConnectCheckBox.isSelected())
-					AP_SAVER.set("autoConnect", "false");
-				else
-					AP_SAVER.set("autoConnect", "true");
-				setVisible(false);
+				save();
 			}
 		});
 		add(saveButton);
@@ -162,6 +198,7 @@ public class OptionPanel extends JFXPanel implements SwingerEventListener {
 			versionComboBox.setSelectedItem(gameVersion);
 		} catch (IllegalArgumentException ex) {
 			versionComboBox.setSelectedIndex(1);
+	
 		}
 	}
 
