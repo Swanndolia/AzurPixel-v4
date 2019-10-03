@@ -11,3 +11,5 @@ https://discord.gg/BRESeuM
 
 Facebook:
 https://www.facebook.com/azurpixel
+
+En cas d'utilisation dans un but de distribuer le launcher merci de bien vouloir créditer mon travail
